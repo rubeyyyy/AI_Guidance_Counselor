@@ -1,0 +1,47 @@
+{
+  "basic_information": {
+    "name": "Sample Student", "age": 16, "grade": "11",
+    "city": "Lafayette", "current_program": "High school", "gpa": 3.5
+  },
+  "career_goals": {
+    "short_term_goal": "Learn video editing",
+    "short_term_timeline": "3-6 Month",
+    "long_term_aspirations": "Work in film production",
+    "long_term_timeline": "More than 3 Years",
+    "confidence": "Somewhat confident"
+  },
+  "career_awareness": {
+    "knows_tutoring_resources": "Yes",
+    "knows_how_to_find_internship": "No",
+    "knows_job_training_resources": "Somewhat",
+    "has_talked_to_career_adult": "No",
+    "knows_required_education": "Somewhat"
+  },
+  "motivation": {
+    "career_interest_reason": "I enjoy telling stories",
+    "primary_motivator": "Other",
+    "other_motivator": "Document my community"
+  },
+  "skills": {
+    "soft_skills": ["Creativity", "Teamwork"],
+    "technical_skills": [
+      {"name": "Video Editing", "proficiency": "Basic"},
+      {"name": "Photography", "proficiency": "Intermediate"}
+    ],
+    "technical_skills_raw": "Video Editing - Basic; Photography - intermediate"
+  },
+  "experience": {
+    "related_experiences": "Edited a school video",
+    "certifications": null,
+    "clubs_competitions_projects": "School media club"
+  },
+  "support_resources": {
+    "socioeconomic_factors": ["Low Income", "First Generation College-Bound"],
+    "has_personal_laptop": false,
+    "has_reliable_internet": true,
+    "biggest_obstacle": "Other",
+    "other_obstacle": "Transportation to workshops",
+    "weekly_learning_hours": 4.5,
+    "learning_preferences": ["Video", "Hands-on"]
+  }
+}

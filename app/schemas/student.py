@@ -1,13 +1,12 @@
 from datetime import datetime, timezone
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class StudentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     display_name: str | None = Field(default=None, min_length=1, max_length=100)
-    assessment_answers: dict[str, JsonValue] = Field(default_factory=dict)
 
 
 class StudentRead(StudentCreate):

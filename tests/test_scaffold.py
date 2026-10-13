@@ -25,12 +25,6 @@ def test_startup_health_and_student_persistence(tmp_path, monkeypatch):
 
         payload = StudentCreate(
             display_name=" Test Student ",
-            assessment_answers={
-                "gpa": 3.2,
-                "laptop_access": False,
-                "skills": [{"name": "Python", "proficiency": "beginner"}],
-                "weekly_hours": 5,
-            },
         )
         with Session(engine) as session:
             student = Student(**payload.model_dump())
@@ -43,14 +37,12 @@ def test_startup_health_and_student_persistence(tmp_path, monkeypatch):
             saved = session.get(Student, student_id)
             result = StudentRead.model_validate(saved)
             assert result.display_name == "Test Student"
-            assert result.assessment_answers == payload.assessment_answers
+            assert saved.assessment_answers == {}
             assert result.created_at.tzinfo == timezone.utc
 
 
-def test_student_schema_validation_and_independent_defaults():
-    first, second = StudentCreate(), StudentCreate()
-    first.assessment_answers["weekly_hours"] = 5
-    assert second.assessment_answers == {}
+def test_student_schema_validation():
+    assert StudentCreate().display_name is None
     invalid_inputs = [
         {"display_name": "   "},
         {"unexpected": True},

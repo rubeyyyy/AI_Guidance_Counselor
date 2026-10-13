@@ -1,8 +1,8 @@
 # AI Guidance Counselor — Student Backend
 
-First increment of a Master's capstone supporting students in under-resourced
-public schools: configuration, SQLite persistence, a Student model, Pydantic
-schemas, and a health endpoint.
+Student backend for a Master's capstone supporting students in under-resourced
+public schools: configuration, SQLite persistence, typed questionnaire answers,
+student/assessment APIs, and a health endpoint. No AI functionality is implemented.
 
 ## Architecture
 
@@ -11,51 +11,97 @@ One Python package separates HTTP routes, validation, persistence, and settings:
 ```text
 app/
 ├── main.py              # FastAPI application and startup/shutdown
-├── api/health.py        # HTTP routes
+├── api/
+│   ├── health.py        # Liveness route
+│   └── students.py      # Student and assessment routes
 ├── core/config.py       # Environment settings
 ├── db/
 │   ├── base.py          # SQLAlchemy declarative base
 │   └── session.py       # Engine, session dependency, table initialization
 ├── models/student.py   # Database representation
 └── schemas/
+    ├── assessment.py   # Seven typed questionnaire sections
     ├── health.py       # Health response
     └── student.py      # Validated student input/output
-tests/test_scaffold.py
+tests/                  # Scaffold and API integration tests
+examples/assessment.json # Complete fictional submission
 .env.example
 requirements.txt
 requirements-dev.txt
 ```
 
-Each package also contains an `__init__.py`. Future routes will validate input
+Each package also contains an `__init__.py`. Routes validate input
 with Pydantic and use a request-scoped SQLAlchemy session. Add business services
 when assessment and guidance behavior requires them; separate microservices and
 a repository framework are unnecessary for this MVP.
 
-### Initial data decisions
+### Data decisions
 
 - SQLite stores the primary student profile. The `students` table has an integer
   ID, optional display name, UTC creation timestamp, and `assessment_answers`
   JSON object. A student can exist before providing a name or assessment answers.
-- JSON preserves numbers, booleans, lists, and nested objects. This is a provisional
-  container, not the finalized assessment schema. The existing Google Form has
-  not yet been supplied or imported. Next, define stable question keys and typed
-  validation from the actual form. Fields needed for reporting can become
-  relational columns or related tables.
+- JSON contains seven typed sections matching the supplied Google Form. Pydantic
+  validates the complete document before persistence; clients cannot write
+  arbitrary JSON through student creation. Numbers, booleans, arrays, and nested
+  objects retain their types. The database stores one current assessment per
+  student; no assessment history or draft saving is implemented.
+- Keeping the existing JSON column avoids schema changes and unnecessary tables
+  for this MVP. Fields needed for reporting can later become relational columns
+  or related tables. SQL alone does not enforce the questionnaire schema, so
+  future non-API writers must also validate through `Assessment`.
 - Persist assessment changes by assigning a new object to
   `student.assessment_answers`. Nested in-place JSON mutations are not tracked
   by this model.
 - Synchronous SQLAlchemy keeps the SQLite MVP simple. `get_db()` yields one
-  session per request and closes it afterward. Future write operations must
-  explicitly commit transactions.
+  session per request and closes it afterward. Write routes explicitly commit
+  transactions; failed requests close their sessions without saving partial data.
 - Startup uses `create_all()` to create missing tables. It does **not** migrate
   existing tables. Add Alembic migrations when the schema evolves.
 
-There are no student CRUD or assessment submission routes yet. Authentication,
-frontend, LangChain, OpenAI, RAG, chat history, recommendations, and counselor
+Authentication, frontend, LangChain, OpenAI, RAG, chat history, recommendations, and counselor
 features are outside this increment. Later, a guidance service should consume the
 structured profile through a provider-neutral interface with OpenAI and
 local/Ollama adapters. A future vector store will index guidance knowledge, not
 serve as the primary student database. No provider dependencies are added yet.
+
+## Student and assessment API
+
+| Method and path | Behavior |
+| --- | --- |
+| `POST /students` | Create identity with `{}` or an optional `display_name`; returns `201` and a `Location` header |
+| `GET /students/{student_id}` | Return identity (`id`, `display_name`, `created_at`); `404` if absent |
+| `GET /students/{student_id}/assessment` | Return the complete questionnaire; `404` if student or assessment is absent |
+| `PUT /students/{student_id}/assessment` | Save or replace a complete questionnaire; returns `200`; `404` if student is absent |
+
+`display_name` is an optional account label. The required questionnaire name is
+`basic_information.name`; the two are intentionally independent. Full assessment
+answers are returned by the dedicated assessment endpoint.
+
+Required form questions must be present for a submission. Missing required
+answers, unknown fields/options, or invalid values return `422` without changing
+the saved assessment. `PUT` replaces the document rather than merging it, so
+omitting previously provided optional answers clears them. Repeated identical
+submissions produce the same stored answers.
+
+Example workflow (replace `1` with the ID returned by the first request):
+
+```bash
+curl -X POST http://127.0.0.1:8000/students \
+  -H 'Content-Type: application/json' -d '{"display_name":"Sample"}'
+curl -X PUT http://127.0.0.1:8000/students/1/assessment \
+  -H 'Content-Type: application/json' --data-binary @examples/assessment.json
+curl http://127.0.0.1:8000/students/1
+curl http://127.0.0.1:8000/students/1/assessment
+```
+
+The example is fictional. See [assessment modeling](docs/assessment.md) for the
+question mapping, optional-answer rules, and choice conventions. `/docs` exposes
+all nested schemas and allowed choices.
+
+Existing scaffold databases need no migration: the table layout is unchanged.
+An empty assessment JSON object means not submitted. If old manually written
+JSON does not match the questionnaire schema, assessment GET returns `409` and
+leaves the data intact. A successful PUT explicitly replaces that old document.
 
 ## Local setup
 
@@ -105,8 +151,9 @@ python -m pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-Tests use temporary SQLite storage to check startup, the health endpoint,
-structured student persistence, input validation, and configuration precedence.
+Tests use temporary SQLite storage to check startup, health, configuration,
+student creation/retrieval, assessment persistence/replacement, optional answers,
+validation failures without data loss, missing students, and legacy data handling.
 
 Implementation references: [FastAPI lifespan](https://fastapi.tiangolo.com/advanced/events/),
 [Pydantic settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/),
