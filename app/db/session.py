@@ -25,6 +25,10 @@ def init_db(bind: Engine) -> None:
     from app.models import Student  # noqa: F401
 
     Base.metadata.create_all(bind=bind)
+    from app.services.questionnaire import seed_sample
+
+    with Session(bind) as session:
+        seed_sample(session)
 
 
 def get_db() -> Generator[Session, None, None]:

@@ -1,8 +1,18 @@
 # AI Guidance Counselor — Student Backend
 
+The new initial assessment workflow is documented in
+[Initial Assessment API](docs/initial-assessment.md). It stores definitions and
+partial answers separately. The complete-document APIs described below remain
+available for compatibility; their questionnaire is not the final initial assessment.
+
+The first AI guidance chat implementation uses the OpenAI API and saved assessment
+profiles. See [AI Guidance and Swagger walkthrough](docs/ai-guidance.md) for setup,
+endpoints, failure behavior, privacy limits, and testing with fictional students.
+
+
 Student backend for a Master's capstone supporting students in under-resourced
 public schools: configuration, SQLite persistence, typed questionnaire answers,
-student/assessment APIs, and a health endpoint. No AI functionality is implemented.
+student/assessment APIs, a health endpoint, and persistent AI guidance conversations.
 
 ## Architecture
 
@@ -31,9 +41,9 @@ requirements-dev.txt
 ```
 
 Each package also contains an `__init__.py`. Routes validate input
-with Pydantic and use a request-scoped SQLAlchemy session. Add business services
-when assessment and guidance behavior requires them; separate microservices and
-a repository framework are unnecessary for this MVP.
+with Pydantic and use a request-scoped SQLAlchemy session. Database operations for
+students, questionnaires, and guidance live in `app/services/`; the LLM adapter
+is separate from profile construction and conversation persistence.
 
 ### Data decisions
 
@@ -58,11 +68,10 @@ a repository framework are unnecessary for this MVP.
 - Startup uses `create_all()` to create missing tables. It does **not** migrate
   existing tables. Add Alembic migrations when the schema evolves.
 
-Authentication, frontend, LangChain, OpenAI, RAG, chat history, recommendations, and counselor
-features are outside this increment. Later, a guidance service should consume the
-structured profile through a provider-neutral interface with OpenAI and
-local/Ollama adapters. A future vector store will index guidance knowledge, not
-serve as the primary student database. No provider dependencies are added yet.
+Authentication, frontend, LangChain, Ollama, RAG, vector databases, and counselor
+dashboard features remain outside this increment. The current guidance service
+uses a provider-neutral interface with an OpenAI implementation; future adapters
+can implement the same interface. Chat history is stored locally in SQLite.
 
 ## Student and assessment API
 
@@ -131,7 +140,8 @@ database readiness probe. Startup initializes the database before serving reques
 ## Configuration
 
 Settings load from `.env` in the repository root. Environment variables override
-the file. No API key is needed.
+the file. Student/assessment APIs and mocked tests need no API key. Live guidance
+requires `OPENAI_API_KEY` in the ignored local `.env` file.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

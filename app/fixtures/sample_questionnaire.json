@@ -1,0 +1,11 @@
+{
+  "id": "sample-initial-v1",
+  "title": "SAMPLE ONLY — Initial assessment demonstration, not the final questionnaire",
+  "is_sample": true,
+  "questions": [
+    {"key": "sample_text", "prompt": "SAMPLE: Enter a text response", "response_type": "text", "required": true, "display_order": 1},
+    {"key": "sample_number", "prompt": "SAMPLE: Enter a number", "response_type": "number", "required": true, "display_order": 2},
+    {"key": "sample_choice", "prompt": "SAMPLE: Select one option", "response_type": "single-choice", "required": false, "display_order": 3, "options": ["Sample A", "Sample B"]},
+    {"key": "sample_choices", "prompt": "SAMPLE: Select options", "response_type": "multiple-choice", "required": false, "display_order": 4, "options": ["Sample A", "Sample B"]}
+  ]
+}

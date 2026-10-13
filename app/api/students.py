@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models import Student
+from app.services import students as service
+from app.services.students import find_student
 from app.schemas.assessment import Assessment
 from app.schemas.student import StudentCreate, StudentRead
 
@@ -14,19 +16,9 @@ Database = Annotated[Session, Depends(get_db)]
 StudentId = Annotated[int, Path(gt=0)]
 
 
-def find_student(student_id: int, db: Session) -> Student:
-    student = db.get(Student, student_id)
-    if student is None:
-        raise HTTPException(status_code=404, detail="Student not found")
-    return student
-
-
 @router.post("", response_model=StudentRead, status_code=status.HTTP_201_CREATED)
 def create_student(payload: StudentCreate, response: Response, db: Database) -> Student:
-    student = Student(**payload.model_dump())
-    db.add(student)
-    db.commit()
-    db.refresh(student)
+    student = service.create_student(payload, db)
     response.headers["Location"] = f"/students/{student.id}"
     return student
 
@@ -54,7 +46,4 @@ def get_assessment(student_id: StudentId, db: Database) -> Assessment:
 
 @router.put("/{student_id}/assessment", response_model=Assessment)
 def replace_assessment(student_id: StudentId, payload: Assessment, db: Database) -> Assessment:
-    student = find_student(student_id, db)
-    student.assessment_answers = payload.model_dump(mode="json")
-    db.commit()
-    return payload
+    return service.replace_assessment(student_id, payload, db)
