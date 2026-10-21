@@ -7,10 +7,12 @@ from app.core.config import Settings, get_settings
 from app.schemas.chat import ChatErrorResponse, ChatRequest, ChatResponse, ConversationDetail, ConversationRead
 from app.services import guidance
 from app.services.llm import LLMService, get_llm
+from app.services.retrieval import RetrievalService, get_retrieval
 
 router = APIRouter(prefix="/students", tags=["AI guidance"])
 LLM = Annotated[LLMService, Depends(get_llm)]
 Configuration = Annotated[Settings, Depends(get_settings)]
+Retrieval = Annotated[RetrievalService, Depends(get_retrieval)]
 
 
 @router.post("/{student_id}/chat", response_model=ChatResponse, responses={
@@ -18,8 +20,8 @@ Configuration = Annotated[Settings, Depends(get_settings)]
     503: {"model": ChatErrorResponse, "description": "Provider not configured; student message saved"},
 })
 def chat(student_id: StudentId, payload: ChatRequest, db: Database, llm: LLM,
-         settings: Configuration):
-    return guidance.chat(db, student_id, payload, llm, settings)
+         settings: Configuration, retrieval: Retrieval):
+    return guidance.chat(db, student_id, payload, llm, settings, retrieval)
 
 
 @router.get("/{student_id}/conversations", response_model=list[ConversationRead])

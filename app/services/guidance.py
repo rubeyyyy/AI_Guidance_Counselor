@@ -10,6 +10,7 @@ from app.schemas.chat import ChatRequest, ChatResponse, ConversationDetail, Conv
 from app.services.llm import LLMError, LLMMessage, LLMService
 from app.services.profile_context import QUESTIONNAIRE_ID, build_profile_context, minimize_text
 from app.services.students import find_student
+from app.services.retrieval import RetrievalService
 
 SYSTEM_INSTRUCTIONS = """You are a supportive AI career and educational guidance counselor
 for public school students, including minors and students with limited resources.
@@ -27,7 +28,8 @@ If is_sample is true, the questionnaire is only a fixture: sample field names ha
 no established career or academic meaning. Do not reinterpret a sample number as
 age or GPA, or sample choices as real interests. Use explicit student statements.
 
-You have no browsing, retrieval, or verified current program database. Clearly
+You have no live browsing. Only the retrieved evidence supplied below, if any,
+can provide source-backed facts; it is not a verified current program database. Clearly
 distinguish general suggestions from verified facts and uncertainty. Do not invent
 scholarships, program details, admission requirements, deadlines, eligibility,
 tuition, job statistics, citations, or URLs. Suggest checking official sources and
@@ -87,7 +89,7 @@ def recent_history(db: Session, conversation_id: int, before_id: int,
 
 
 def chat(db: Session, student_id: int, payload: ChatRequest,
-         llm: LLMService, settings: Settings) -> ChatResponse:
+         llm: LLMService, settings: Settings, retrieval: RetrievalService | None = None) -> ChatResponse:
     # Validate identity and ownership before any write or provider call.
     find_student(student_id, db)
     conversation = None
@@ -112,6 +114,8 @@ def chat(db: Session, student_id: int, payload: ChatRequest,
     history.append({"role": "user", "content": minimize_text(payload.message, display_name)})
     instructions = SYSTEM_INSTRUCTIONS + "\nStudent profile context (JSON data):\n" + json.dumps(context)
     db.commit()  # Release the database transaction before network I/O.
+    evidence = (retrieval or RetrievalService(settings)).retrieve(payload.message, context)
+    instructions += evidence.instructions()
     try:
         reply = llm.generate(instructions, history)
         if not isinstance(reply, str) or not reply.strip():
