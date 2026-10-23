@@ -1,9 +1,18 @@
+> Authentication is now required for student data. Follow the current
+> [authentication setup and migration guide](docs/authentication.md) before running
+> the app. Student onboarding uses `/auth/register`, `/auth/verify-email`,
+> cookie sessions, and CSRF headers.
+> Registration now requires an emailed code; configure SMTP first. **Forgot password**
+> sends a separate reset code and invalidates existing sessions after the change. Use synthetic or
+> de-identified data only until privacy, consent, school approval, access controls,
+> and security safeguards have been reviewed.
+
 # AI Guidance Counselor — Student Backend
 
-The new initial assessment workflow is documented in
-[Initial Assessment API](docs/initial-assessment.md). It stores definitions and
-partial answers separately. The complete-document APIs described below remain
-available for compatibility; their questionnaire is not the final initial assessment.
+The initial assessment workflow uses `initial-v2`, derived from the actual supplied
+questionnaire modeled in `app/schemas/assessment.py`. See
+[Initial Assessment API](docs/initial-assessment.md) for individual answers, resume,
+and profile behavior. The complete-document APIs remain available for compatibility.
 
 The first AI guidance chat implementation uses the OpenAI API and saved assessment
 profiles. See [AI Guidance and Swagger walkthrough](docs/ai-guidance.md) for setup,
@@ -65,19 +74,23 @@ is separate from profile construction and conversation persistence.
 - Synchronous SQLAlchemy keeps the SQLite MVP simple. `get_db()` yields one
   session per request and closes it afterward. Write routes explicitly commit
   transactions; failed requests close their sessions without saving partial data.
-- Startup uses `create_all()` to create missing tables. It does **not** migrate
-  existing tables. Add Alembic migrations when the schema evolves.
+- Run `python -m alembic upgrade head` before startup. Startup verifies the migration
+  revision and seeds questionnaire definitions; it does not change the schema.
 
-Authentication, Ollama, and counselor
-dashboard features remain outside this increment. The current guidance service
+Authentication, email verification, and password recovery are implemented. Ollama
+and counselor dashboard features remain outside this increment. The current guidance service
 uses a provider-neutral interface with an OpenAI implementation; future adapters
 can implement the same interface. Chat history is stored locally in SQLite.
 
 ## Student and assessment API
 
+Student-specific routes require a verified, active session and ownership of the
+requested student record. All writes require trusted Origin and CSRF headers.
+See the [authentication API contract](docs/authentication.md#api-contract-and-security).
+
 | Method and path | Behavior |
 | --- | --- |
-| `POST /students` | Create identity with `{}` or an optional `display_name`; returns `201` and a `Location` header |
+| `POST /students` | Authenticated student accounts without a profile only; normal registered accounts receive `409`. Use email-verified registration for onboarding. |
 | `GET /students/{student_id}` | Return identity (`id`, `display_name`, `created_at`); `404` if absent |
 | `GET /students/{student_id}/assessment` | Return the complete questionnaire; `404` if student or assessment is absent |
 | `PUT /students/{student_id}/assessment` | Save or replace a complete questionnaire; returns `200`; `404` if student is absent |
@@ -285,9 +298,9 @@ add that directory to `.gitignore` too.
 6. Continue with the returned `conversation_id`; the conversation routes retain
    both messages and references as before.
 
-The current profile builder still uses `sample-initial-v1`; the separate complete
-assessment JSON is not newly wired into chat by this phase. Sample field names
-are not interpreted as real interests or demographics.
+Chat uses the real `initial-v2` profile by default (`GUIDANCE_QUESTIONNAIRE_ID`).
+Existing valid complete assessments are carried into this profile on startup and
+when submitted through the complete-assessment API. Old conversations remain accessible.
 
 Set `RAG_ENABLED=false` and restart to disable retrieval and query embeddings.
 Chat still works using its existing profile/history and general guidance rules.
@@ -311,8 +324,9 @@ acknowledge missing verified evidence.
   samples cannot support verified program-specific facts. Citation correctness
   and factual grounding remain prompt-based, not a formal guarantee or automated
   claim verifier. A human counselor should review consequential decisions.
-- No scraping, live browsing, automatic freshness checking, authentication,
-  profile embeddings, or frontend is added. Curators must review and update sources.
+- Retrieval does not add scraping, live browsing, automatic freshness checking,
+  or profile embeddings. Curators must review and update sources. Authentication
+  and the frontend are implemented in their respective layers.
 - A broad retrieval failure returns general guidance; the status route reports
   local index availability, not OpenAI service health or source freshness.
 
@@ -331,7 +345,9 @@ and [OpenAI embeddings adapter](https://reference.langchain.com/python/langchain
 
 `frontend/` contains React, Vite, TypeScript, and Tailwind CSS. It uses the existing
 FastAPI routes; no new recommendation endpoints or backend profile logic are added.
-The only backend addition for this phase is configurable development CORS.
+The frontend uses the real `initial-v2` questionnaire. Backend startup seeds its
+20-question revision with 5 required and 15 optional answers and carries forward saved complete
+assessments without overwriting individually edited answers. CORS is configurable.
 
 ### Run locally
 
@@ -372,16 +388,19 @@ override, set a JSON array in the **backend root `.env`** and restart FastAPI:
 CORS_ORIGINS=["http://127.0.0.1:5173","http://localhost:5173"]
 ```
 
-CORS allows GET, POST, and PUT with Content-Type and no browser credentials.
-CORS is not authentication or authorization.
+CORS allows GET, POST, and PUT with Content-Type and X-CSRF-Token, with browser
+credentials for explicit configured origins. Authentication and ownership checks
+are enforced separately on the server. Configure SMTP and migrate the database
+using the [setup guide](docs/authentication.md) before testing registration.
 
 ### Test the student journey
 
-1. On the welcome page, create a **fictional** student or load a known development
-   student ID. There is no student-list API, so the selector uses ID entry. Record
-   the development ID shown in the header if you want to resume after refreshing.
+1. On the welcome dashboard, create an account and enter the emailed verification
+   code, or select Returning student to sign in. Refresh restores your cookie
+   session; no student ID entry is needed. Forgot password sends a separate code
+   to recover an existing account. SMTP must be configured for actual delivery.
 2. Open Initial assessment. Questions are loaded dynamically from
-   `/questionnaires/sample-initial-v1/questions`; none are hardcoded in React.
+   `/questionnaires/initial-v2/questions`; none are hardcoded in React.
    Text, number, radio, and checkbox controls match backend question types.
 3. Use Save & next to persist each answer. Optional Skip sends `null` and clears
    any previous answer to that question. Back preserves unsaved edits only while
@@ -390,12 +409,12 @@ CORS is not authentication or authorization.
    bar uses the backend progress endpoint; optional unanswered questions do not
    prevent completion of required questions.
 5. Open My profile to inspect actual saved fields. Edit assessment returns to the
-   question workflow. Missing fields stay missing; sample fields are displayed
-   separately rather than treated as real interests, ages, or academic measures.
+   question workflow. Missing fields stay missing. Other follow-up questions
+   are no longer separate questions. Motivation and obstacles both accept multiple selections.
 6. Open AI counselor, send a question, start another conversation, and select a
    previous conversation to continue. The existing API key/model setup is required
    for live replies. Existing RAG settings control source retrieval.
-7. Source IDs, sample labels, and links within replies are retained. Markdown is
+7. Source IDs and links within replies are retained. Markdown is
    rendered without raw HTML or unsafe URL schemes. The frontend does not assert
    that a model-supplied citation is verified.
 8. Explore pathways shows saved assistant messages alongside their original
@@ -428,35 +447,47 @@ npm run lint
 npm test
 ```
 
-Frontend tests mock HTTP responses and cover creation/selection, dynamic question
+Frontend tests mock HTTP responses and cover registration, email codes, sign-in,
+password recovery, session restoration, dynamic question
 loading, each answer type, edits, resume, saved progress, profile display, chat
 and history, source rendering, provider failure recovery, and API errors. They make
 no paid model calls. Backend regression tests remain `python -m pytest -q`.
 
-The build writes `frontend/dist/`. `npm run preview` can preview the built landing
-page, but the development student selector is excluded from production builds.
-Use `npm run dev` for the full development workflow. No authenticated production
-student entry point has been implemented.
+The build writes `frontend/dist/`. `npm run preview` serves the built application
+locally, including student entry. It uses the configured API base URL; add its
+origin (normally `http://127.0.0.1:4173`) to CORS_ORIGINS when using preview.
+The application has normal student-facing wording in both development and builds.
 
 ### Privacy and current API gaps
 
-Student selection and loaded answers live only in React memory. There is no use
-of localStorage, sessionStorage, or browser database storage for student records.
-Refresh clears the selected student; saved answers and history remain in SQLite
-and can be resumed by selecting the ID again. API requests use `cache: no-store`.
+Loaded answers and account state live only in React memory. There is no use of
+localStorage, sessionStorage, or browser database storage for credentials or student
+records. Refresh restores a verified user's session through `/auth/me`; saved
+answers and history remain in SQLite. API responses use `Cache-Control: no-store`.
 
-This is a **development-only preview with synthetic/de-identified data**. Both
-authentication and server-side authorization are required before deployment with
-real student records. Hiding the development selector in a production build does
-not protect the existing unauthenticated API.
+Authentication uses HttpOnly cookie sessions, CSRF protection, email verification,
+and server-side role and ownership checks. The student ID selector and development
+preview text have been removed. Password recovery revokes previous sessions.
+Real email delivery requires private SMTP settings. Existing pre-verification
+accounts must use Forgot password once to verify email ownership.
+
+Before using real student records, complete the school, privacy, consent, and
+security review described in the [rollout limitations](docs/authentication.md#tests-and-pilot-limitations).
+Removing preview wording does not establish deployment readiness. The app has not
+been deployed or tested against a real SMTP provider by these automated tests.
 
 Current API limitations are surfaced rather than simulated:
 
-- `sample-initial-v1` has sample questions, so the profile's academic background,
-  interests, aspirations, skills, learning preferences, resources, constraints,
-  and goals may not yet exist as meaningful fields.
-- The separate complete-assessment API is not merged into this versioned profile
-  or chat context by the frontend.
+- `initial-v2` covers the supplied questionnaire's seven sections. Choice labels
+  and field validation come from the existing Pydantic schema. Technical skills
+  use the original free-text field; existing structured skills are preserved in
+  the complete-assessment snapshot and represented as text when imported.
+- Complete-assessment PUT imports its validated fields into the resumable profile.
+  Individual draft edits are authoritative for the frontend and guidance; they do
+  not replace the historical complete-document snapshot. Startup imports only
+  missing answer rows, so saved edits and explicitly cleared answers survive restarts.
+- `sample-initial-v1` remains available only for compatibility with older clients
+  and tests. It is not used by the student interface or default AI profile.
 - No recommendations, structured source list, or machine-readable verification
   status is returned. The UI displays original guidance and source references.
 - Conversation lists have IDs and timestamps, not generated titles or pagination.
@@ -465,3 +496,21 @@ Current API limitations are surfaced rather than simulated:
 
 Build integration uses the [Vite guide](https://vite.dev/guide/) and
 [Tailwind Vite plugin](https://tailwindcss.com/docs/installation/using-vite).
+
+### Shorter initial assessment (initial-v2)
+
+The student assessment has exactly 20 questions: 5 required and 15 optional.
+Required answers are grade/year, short-term goal, long-term aspirations, soft
+skills, and learning preferences. All other questions can be skipped. Motivation
+and obstacles use multiple-choice checkboxes with the existing option labels.
+Other remains a choice without extra follow-up questions, so the total stays 20.
+
+The revision removes name, age, city, long-term timeline, four awareness questions,
+separate Other explanations, and the clubs/projects question from the assessment.
+Original initial-v1 questions and answers remain available. On startup, retained
+v1 answers are copied into initial-v2 only where no v2 answer exists; old single
+motivation/obstacle choices become one-item lists. Existing v2 edits and explicitly
+cleared answers are never overwritten by startup. Complete-document PUT continues
+to accept its original schema and explicitly replaces retained profile answers,
+converting these two single-choice fields to lists. Frontend and default guidance
+use initial-v2. No schema change is made to the original complete-document API.
