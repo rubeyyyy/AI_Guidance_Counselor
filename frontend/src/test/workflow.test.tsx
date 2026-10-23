@@ -4,7 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../App'
 import { api, ApiError } from '../api/client'
-import type { AnswerValue, ConversationDetail, Message, Question } from '../api/types'
+import type { AnswerValue, ConversationDetail, Message, Question, PathwayPlan } from '../api/types'
 import { GuidanceText } from '../components/Shared'
 import { Assessment } from '../views/Assessment'
 
@@ -19,6 +19,12 @@ let values: Record<number, AnswerValue>
 let conversation: ConversationDetail | null
 let failure: { path: string; status: number; detail: unknown } | null
 let signedIn: boolean
+let pathway: PathwayPlan
+function freshPathway(): PathwayPlan {
+  return { generated_by: 'ai', model: 'test-model', generated_at: new Date().toISOString(), short_term_goal: 'Try robotics', long_term_aspiration: 'Design robots', pace: 'Try one short session per week.', adaptations: ['Use shared school equipment.'], assessment_changed: false,
+    steps: [{ id: 'experiment', horizon: 'short', title: 'Try an interest experiment', action: 'Sketch a robot on paper.', why: 'You want to explore robotics.', evidence: 'Save a sketch and feedback.', timing: 'First session', status: 'not_started', notes: '' },
+      { id: 'compare', horizon: 'long', title: 'Compare routes', action: 'Discuss two routes with a counselor.', why: 'Your aspiration is to design robots.', evidence: 'A comparison of two routes.', timing: 'After your experiment', status: 'not_started', notes: '' }] }
+}
 const authUser = { id: 5, email: 'synthetic@example.org', role: 'student', student_id: 42, is_active: true }
 let fetchMock: ReturnType<typeof vi.fn>
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -27,7 +33,7 @@ function progress() {
   return { total_questions: 4, answered_questions: count, required_questions: 2, answered_required_questions: [11, 12].filter(id => values[id] != null).length, completion_percent: count * 25, is_complete: values[11] != null && values[12] != null }
 }
 beforeEach(() => {
-  values = {}; conversation = null; failure = null; signedIn = true
+  pathway = freshPathway(); values = {}; conversation = null; failure = null; signedIn = true
   fetchMock = vi.fn(async (input: string, options: RequestInit = {}) => {
     const path = new URL(input).pathname
     if (failure && path.endsWith(failure.path)) return response({ detail: failure.detail }, failure.status)
@@ -50,6 +56,14 @@ beforeEach(() => {
     }
     if (path.endsWith('/progress')) return response(progress())
     if (path.endsWith('/profile')) return response({ student_id: 42, display_name: 'Practice', questionnaire_id: 'initial-v2', is_sample: true, fields: questions.map(q => ({ key: q.key, question_id: q.id, value: values[q.id] ?? null })), progress: progress() })
+    if (path.endsWith('/pathway/generate')) { pathway = freshPathway(); return response(pathway) }
+    if (path.endsWith('/pathway/rebuild')) { pathway = freshPathway(); return response(pathway) }
+    if (path.includes('/pathway/steps/')) {
+      const update = JSON.parse(String(options.body))
+      pathway = { ...pathway, steps: pathway.steps.map(step => step.id === path.split('/').at(-1) ? { ...step, ...update } : step) }
+      return response(pathway)
+    }
+    if (path.endsWith('/pathway')) return progress().is_complete ? response(pathway) : response({ detail: 'Complete the required initial assessment questions to build your pathway.' }, 409)
     if (path.endsWith('/conversations')) return response(conversation ? [{ ...conversation, messages: undefined }] : [])
     if (path.endsWith('/conversations/7') && conversation) return response(conversation)
     if (path.endsWith('/chat') && options.method === 'POST') {
@@ -78,7 +92,7 @@ describe('student workflow with mocked HTTP responses', () => {
     expect(screen.getByRole('button', { name: 'My profile' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'AI counselor' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Explore pathways' }))
-    await user.click(await screen.findByRole('button', { name: 'Explore with my counselor' }))
+    await user.click(await screen.findByRole('button', { name: 'Complete initial assessment' }))
     await user.type(await screen.findByRole('textbox', { name: questions[0].prompt }), 'My interests')
     await user.click(screen.getByRole('button', { name: 'Save & next' }))
     expect(screen.getByRole('button', { name: 'My profile' })).toBeDisabled()
@@ -253,11 +267,11 @@ describe('student workflow with mocked HTTP responses', () => {
     await user.click(screen.getByRole('button', { name: /Conversation 1/ }))
     await screen.findByText('What next?')
     await user.click(screen.getByRole('button', { name: 'Explore pathways' }))
-    await screen.findByRole('heading', { name: 'Your pathway notebook.' })
-    expect(await screen.findAllByRole('link', { name: 'the source' })).toHaveLength(2)
-    expect(screen.getByText(/not a ranked career recommendation/)).toBeVisible()
-    await user.click(screen.getAllByRole('button', { name: 'Continue this conversation' })[0])
-    await screen.findByText('What next?')
+    await screen.findByRole('heading', { name: 'Your pathway, one step at a time.' })
+    expect(await screen.findByText('Try robotics')).toBeVisible()
+    expect(screen.queryByRole('link', { name: 'the source' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Discuss my plan with AI counselor' }))
+    await screen.findByRole('textbox', { name: 'Your message' })
   })
   it('recovers a provider failure using its saved conversation ID', async () => {
     values = { 11: 'Completed', 12: 3 }
@@ -275,9 +289,75 @@ describe('student workflow with mocked HTTP responses', () => {
     const calls = fetchMock.mock.calls.filter(c => c[0].endsWith('/chat'))
     expect(JSON.parse(calls[1][1].body as string).conversation_id).toBe(7)
   })
-  it('shows empty exploration without fabricating careers', async () => {
+  it('generates a first AI plan explicitly and retries provider failures', async () => {
+    values = { 11: 'Completed', 12: 3 }
+    failure = { path: '/pathway', status: 404, detail: 'No saved plan' }
+    const user = await enter()
+    await user.click(screen.getByRole('button', { name: 'Explore pathways' }))
+    const generate = await screen.findByRole('button', { name: 'Generate my AI pathway' })
+    expect(fetchMock.mock.calls.some(c => c[0].endsWith('/pathway/generate'))).toBe(false)
+    failure = { path: '/pathway/generate', status: 503, detail: 'AI generation unavailable' }
+    await user.click(generate)
+    expect(await screen.findByRole('alert')).toHaveTextContent('AI generation unavailable')
+    expect(screen.getByRole('button', { name: 'Generate my AI pathway' })).toBeEnabled()
+    failure = null
+    await user.click(screen.getByRole('button', { name: 'Generate my AI pathway' }))
+    await screen.findByText('YOUR AI-GENERATED PLAN')
+    expect(screen.getByText('Sketch a robot on paper.')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Your starting point' }))
+    await user.click(screen.getByRole('button', { name: 'Explore pathways' }))
+    await screen.findByText('YOUR AI-GENERATED PLAN')
+    expect(fetchMock.mock.calls.filter(c => c[0].endsWith('/pathway/generate'))).toHaveLength(2)
+  })
+  it('keeps an earlier starter plan and its notes when AI rebuilding fails', async () => {
+    values = { 11: 'Completed', 12: 3 }; pathway.generated_by = 'rules'; pathway.steps[0].notes = 'Saved work'
+    const user = await enter()
+    await user.click(screen.getByRole('button', { name: 'Explore pathways' }))
+    await screen.findByText('YOUR SAVED STARTER PLAN')
+    expect(screen.getAllByLabelText('Notes, evidence, or your target date')[0]).toHaveValue('Saved work')
+    failure = { path: '/pathway/rebuild', status: 502, detail: 'Plan could not be validated' }
+    await user.click(screen.getByRole('button', { name: 'Rebuild pathway' }))
+    await user.click(screen.getByRole('button', { name: 'Replace plan and reset progress' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Plan could not be validated')
+    expect(screen.getAllByLabelText('Notes, evidence, or your target date')[0]).toHaveValue('Saved work')
+  })
+  it('tracks pathway progress, keeps notes on save errors, and confirms rebuilds', async () => {
+    values = { 11: 'Completed', 12: 3 }
+    const user = await enter()
+    await user.click(screen.getByRole('button', { name: 'Explore pathways' }))
+    const statuses = await screen.findAllByLabelText('Status')
+    const notes = screen.getAllByLabelText('Notes, evidence, or your target date')[0]
+    await user.selectOptions(statuses[0], 'completed')
+    await user.type(notes, 'Made a paper robot')
+    failure = { path: '/steps/experiment', status: 503, detail: 'Save unavailable' }
+    await user.click(screen.getAllByRole('button', { name: 'Save progress' })[0])
+    expect(await screen.findByRole('alert')).toHaveTextContent('Save unavailable')
+    expect(notes).toHaveValue('Made a paper robot')
+    expect(screen.getByRole('progressbar', { name: 'Pathway progress' })).toHaveAttribute('value', '0')
+    failure = null
+    await user.click(screen.getAllByRole('button', { name: 'Save progress' })[0])
+    await waitFor(() => expect(screen.getByRole('progressbar')).toHaveAttribute('value', '50'))
+    await user.click(screen.getByRole('button', { name: 'Your starting point' }))
+    await user.click(screen.getByRole('button', { name: 'Explore pathways' }))
+    await waitFor(() => expect(screen.getAllByLabelText('Notes, evidence, or your target date')[0]).toHaveValue('Made a paper robot'))
+    await user.click(screen.getByRole('button', { name: 'Rebuild pathway' }))
+    await user.click(screen.getByRole('button', { name: 'Keep current plan' }))
+    expect(fetchMock.mock.calls.some(c => c[0].endsWith('/pathway/rebuild'))).toBe(false)
+    await user.click(screen.getByRole('button', { name: 'Rebuild pathway' }))
+    await user.click(screen.getByRole('button', { name: 'Replace plan and reset progress' }))
+    await waitFor(() => expect(screen.getByRole('progressbar')).toHaveAttribute('value', '0'))
+  })
+  it('shows assessment changes and pauses progress until the student rebuilds', async () => {
+    values = { 11: 'Completed', 12: 3 }; pathway.assessment_changed = true
+    const user = await enter()
+    await user.click(screen.getByRole('button', { name: 'Explore pathways' }))
+    await screen.findByText(/Your assessment has changed/)
+    expect(screen.getAllByLabelText('Status')[0]).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Rebuild pathway' })).toBeEnabled()
+  })
+  it('asks for the assessment before creating a pathway', async () => {
     const user = await enter(); await user.click(screen.getByRole('button', { name: 'Explore pathways' }))
-    await screen.findByText('A world of possibilities starts with a question.')
+    await screen.findByText('Start with your initial assessment.')
   })
 })
 

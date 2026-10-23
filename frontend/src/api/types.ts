@@ -21,3 +21,14 @@ export interface Message {
 export interface Conversation { id: number; student_id: number; questionnaire_id: string; created_at: string }
 export interface ConversationDetail extends Conversation { messages: Message[] }
 export interface ChatResponse { conversation_id: number; student_message: Message; assistant_message: Message }
+
+export type StepStatus = 'not_started' | 'in_progress' | 'completed'
+export interface PathwayStep {
+  id: string; horizon: 'short' | 'long'; title: string; action: string; why: string
+  evidence: string; timing: string; weekly_minutes?: number; status: StepStatus; notes: string
+}
+export interface PathwayPlan {
+  generated_by?: 'ai' | 'rules'; model?: string
+  generated_at: string; short_term_goal: string; long_term_aspiration: string
+  pace: string; adaptations: string[]; assessment_changed: boolean; steps: PathwayStep[]
+}

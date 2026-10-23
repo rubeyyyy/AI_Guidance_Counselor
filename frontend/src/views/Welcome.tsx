@@ -11,8 +11,8 @@ export function Welcome({ student, onStart, children }: { student: Student | nul
     {children}
     <section className="journey-section" id="how-it-works"><div className="section-heading"><h2>A little reflection. A clearer direction.</h2><span>HERE’S HOW IT WORKS</span></div><div className="grid gap-5 md:grid-cols-3">{[
       { icon: BookOpen, number: '01', title: 'Start with you', text: 'Your initial assessment helps us understand your goals, skills, and circumstances. Skip optional questions and update answers later.' },
-      { icon: MessageCircle, number: '02', title: 'Talk it through', text: 'Ask questions, share your interests, and explore practical next steps with your AI guidance counselor.' },
-      { icon: Compass, number: '03', title: 'Explore what’s possible', text: 'Revisit ideas from your conversations. Bring your questions to a trusted human counselor.' },
+      { icon: MessageCircle, number: '02', title: 'Follow your pathway', text: 'Get short-term actions and long-term milestones based on your assessment. Track progress and reflect on what you learn.' },
+      { icon: Compass, number: '03', title: 'Adjust as you grow', text: 'Update your goals as you learn. Use AI counselor for questions and review important decisions with a trusted human counselor.' },
     ].map(({ icon: Icon, number, title, text }) => <article className="step-card" key={number}><div className="flex items-center justify-between"><span className="step-icon"><Icon size={22} /></span><span className="step-number">{number}</span></div><h3>{title}</h3><p>{text}</p></article>)}</div></section>
     <aside className="counselor-note"><span className="note-icon"><MessageCircle size={22} /></span><div><strong>A helpful companion, with a human in your corner.</strong><p>AI guidance supports exploration. It does not replace a qualified human counselor. Verify important education, financial aid, and career decisions with one.</p></div></aside>
   </>

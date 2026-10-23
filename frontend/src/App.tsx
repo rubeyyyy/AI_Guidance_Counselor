@@ -61,7 +61,6 @@ export default function App() {
   if (!user) return <AuthPage onAuthenticated={authenticated} message={authError} />
   if (user.role === 'counselor' || !student) return <main className="p-8"><h1>{user.role === 'counselor' ? 'Counselor account' : 'Student profile unavailable'}</h1><p>{user.role === 'counselor' ? 'The counselor workspace is not available yet. Student records require an assignment.' : 'Please contact your school support team.'}</p>{authError && <p role="alert">{authError}</p>}<button className="button secondary" onClick={() => void logout()}>Sign out</button></main>
   function navigate(next: View) { setView((next === 'profile' || next === 'chat') && !assessmentComplete ? 'assessment' : next); if (next === 'chat') setConversation(null) }
-  function openConversation(id: number) { if (!assessmentComplete) { navigate('assessment'); return } setConversation(id); setView('chat') }
   return <div className="app-shell">
     <a href="#main" className="skip-link">Skip to content</a>
     <aside className="sidebar">
@@ -79,7 +78,7 @@ export default function App() {
         {student && view === 'assessment' && <Assessment student={student} onProgress={updateProgress} onDone={() => navigate('profile')} />}
         {student && assessmentComplete && view === 'profile' && <ProfileView student={student} onEdit={() => navigate('assessment')} onChat={() => navigate('chat')} />}
         {student && assessmentComplete && view === 'chat' && <Chat student={student} initialConversation={conversation} />}
-        {student && view === 'explore' && <Explore student={student} onChat={() => navigate('chat')} onOpen={openConversation} />}
+        {student && view === 'explore' && <Explore student={student} onChat={() => navigate('chat')} onEdit={() => navigate('assessment')} />}
         <footer className="page-footer"><span><Leaf size={14} /> PathBridge AI</span><p>Explore at your own pace. Your future is yours to shape.</p><a href="#main">Back to top <ArrowRight size={13} /></a></footer>
       </main>
     </div>

@@ -1,4 +1,4 @@
-import type { Answer, AnswerValue, ChatResponse, Conversation, ConversationDetail, Profile, Progress, Question, Student } from './types'
+import type { PathwayPlan, StepStatus, Answer, AnswerValue, ChatResponse, Conversation, ConversationDetail, Profile, Progress, Question, Student } from './types'
 
 export interface AuthUser { id: number; email: string; role: 'student' | 'counselor'; student_id: number | null; is_active: boolean; email_verified: boolean }
 let csrfToken = ''
@@ -78,6 +78,10 @@ export const api = {
   progress: (id: number) => request<Progress>(`${assessment(id)}/progress`),
   profile: (id: number) => request<Profile>(`${assessment(id)}/profile`),
   saveAnswer: (id: number, question: number, value: AnswerValue) => request<Answer>(`${assessment(id)}/answers/${question}`, { method: 'PUT', body: JSON.stringify({ value }) }),
+  pathway: (id: number) => request<PathwayPlan>(`/students/${id}/pathway`),
+  generatePathway: (id: number) => request<PathwayPlan>(`/students/${id}/pathway/generate`, { method: 'POST' }),
+  rebuildPathway: (id: number) => request<PathwayPlan>(`/students/${id}/pathway/rebuild`, { method: 'POST' }),
+  updatePathwayStep: (id: number, step: string, status: StepStatus, notes: string) => request<PathwayPlan>(`/students/${id}/pathway/steps/${step}`, { method: 'PUT', body: JSON.stringify({ status, notes }) }),
   conversations: (id: number) => request<Conversation[]>(`/students/${id}/conversations`),
   conversation: (id: number, conversation: number) => request<ConversationDetail>(`/students/${id}/conversations/${conversation}`),
   chat: (id: number, message: string, conversation: number | null) => request<ChatResponse>(`/students/${id}/chat`, { method: 'POST', body: JSON.stringify({ message, conversation_id: conversation }) }),
