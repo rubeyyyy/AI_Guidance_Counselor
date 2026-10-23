@@ -87,6 +87,6 @@ export function Chat({ student, initialConversation }: { student: Student; initi
         {error && <ErrorNotice error={error} retry={!sending ? reload : undefined} />}
         <form className="chat-composer" onSubmit={send}><label className="sr-only" htmlFor="chat-message">Your message</label><textarea ref={textarea} id="chat-message" rows={2} maxLength={4000} value={draft} disabled={sending || loading} onChange={e => setDraft(e.target.value)} placeholder="Ask a question or share what’s on your mind…" /><div className="flex items-center justify-between gap-3"><span>{draft.length}/4000 · Avoid personal identifying details</span><button className="button primary" disabled={sending || loading || !draft.trim()} type="submit">{sending ? 'Sending…' : 'Send'}<Send size={16} /></button></div></form>
       </section></div>
-    <aside className="evidence-note"><strong>Explore ideas. Check the evidence.</strong> Sources and sample labels appear within replies when supplied by the counselor. The API does not provide structured verification labels. General suggestions are starting points; verify requirements, costs, and eligibility with official sources and a human counselor.</aside>
+    <aside className="evidence-note"><strong>Explore ideas. Check the evidence.</strong> Source references appear within replies when available. General suggestions are starting points; verify requirements, costs, and eligibility with official sources and a human counselor.</aside>
   </>
 }

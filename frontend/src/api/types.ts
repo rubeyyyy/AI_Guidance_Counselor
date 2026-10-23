@@ -2,6 +2,7 @@ export type AnswerValue = string | number | string[] | null
 export interface Student { id: number; display_name: string | null; created_at: string }
 export interface Question {
   id: number; key: string; prompt: string; required: boolean; display_order: number
+  required_when?: Record<string, string> | null
   response_type: 'text' | 'number' | 'single-choice' | 'multiple-choice'; options: string[]
 }
 export interface Answer { question_id: number; value: AnswerValue }

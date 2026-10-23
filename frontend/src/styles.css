@@ -186,3 +186,35 @@ dd { font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 900px) { .sidebar { width: 78px; padding: 25px 10px; align-items: center; } .brand>span:not(.brand-mark), .sidebar-label, .sidebar-note, .sidebar-bottom { display: none; } nav { margin-top: 45px; width: 100%; } nav button { font-size: 0; justify-content: center; padding: 15px 8px; gap: 0; } nav button svg { width: 21px; height: 21px; } .nav-dot { display: none; } .workspace { margin-left: 78px; width: calc(100% - 78px); } .welcome-hero h1 { font-size: 3rem; } .art-card small { font-size: 8px; } }
 @media (max-width: 680px) { .app-shell { display: block; } .sidebar { position: static; width: 100%; padding: 18px 18px 8px; border-right: 0; border-bottom: 1px solid #e3e8dc; } .brand { align-self: start; } .brand>span:not(.brand-mark) { display: block; } .brand small { display: none; } .brand-mark { width: 34px; height: 36px; border-radius: 9px 9px 9px 3px; } nav { display: flex; margin-top: 20px; overflow-x: auto; } nav button { font-size: 10px; padding: 10px 8px; gap: 6px; flex-direction: column; flex: 1; white-space: nowrap; min-width: 63px; } nav button svg { width: 18px; height: 18px; } .workspace { margin: 0; width: 100%; } .topbar { min-height: 61px; padding: 10px 6%; } .topbar-tag { font-size: 8px; } main { padding: 18px 6% 0; } .development-banner { margin-bottom: 20px; font-size: 10px; } .welcome-hero { grid-template-columns: 1fr; padding-top: 10px; } .welcome-hero h1 { font-size: 3.3rem; } .hero-description { max-width: none; } .path-art { min-height: 250px; max-width: 420px; width: 100%; margin: 10px auto 0; border-radius: 90px 90px 16px 16px; } .art-card-top { top: 45px; left: 30px; right: 40px; } .art-card-bottom { bottom: 55px; left: 70px; right: 20px; } .art-card small { font-size: 9px; } .section-heading { align-items: start; } .section-heading h2 { font-size: 19px; } .section-heading>span { display: none; } .student-selector { padding: 22px; } .input-action { flex-wrap: wrap; } .input-action input { flex: 1 1 130px; } .input-action button { flex: 1; } .page-footer { flex-wrap: wrap; } .page-footer p { order: 3; width: 100%; } .question-panel { padding: 23px; } .question-actions { flex-wrap: wrap; } .chat-layout { grid-template-columns: 1fr; } .conversation-sidebar { padding: 12px; } .conversation-sidebar h2 { margin: 17px 8px 8px; } .conversation-list { display: flex; max-height: 100px; overflow-x: auto; } .conversation-list button { flex-shrink: 0; } .chat-transcript { height: 400px; padding: 15px; } .profile-summary, .next-step { flex-wrap: wrap; } .page-title { margin-top: 27px; } .chat-composer { padding: 13px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+
+/* Account access belongs to the same welcoming student space. */
+.auth-shell .sidebar nav a { display: flex; align-items: center; gap: 13px; padding: 14px; border-radius: 8px; color: #607269; text-decoration: none; font-size: 13px; font-weight: 550; }
+.auth-shell .sidebar nav a:hover { background: #f2f5ef; }
+.auth-shell .sidebar nav a[aria-current] { background: #eaf2eb; color: #185c4b; }
+.auth-access { margin: 4px 0 38px; padding: 0; gap: 0; overflow: hidden; scroll-margin-top: 24px; grid-template-columns: .95fr 1.05fr; }
+.auth-intro { padding: 38px 32px; align-self: center; }
+.auth-emblem { display: inline-grid; place-items: center; width: 54px; height: 54px; color: #39765b; background: #e0eadc; border: 1px solid #d4e1ce; border-radius: 17px 17px 17px 5px; margin-bottom: 25px; }
+.auth-intro h2 { font-size: clamp(1.55rem, 2.3vw, 2.05rem); line-height: 1.25; margin-bottom: 18px; }
+.auth-intro p { max-width: 330px; }
+.auth-trust { display: flex; align-items: center; gap: 9px; margin-top: 25px; font-size: 11px; color: #5d735b; }
+.auth-trust svg { flex-shrink: 0; }
+.auth-form-panel { padding: 30px; background: #fffdf9; border-left: 1px solid #e2e7da; }
+.auth-switch { display: flex; padding: 4px; border: 1px solid #e4e8de; border-radius: 9px; background: #f2f4ee; margin-bottom: 24px; gap: 4px; }
+.auth-switch button { flex: 1; padding: 10px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #6a7964; }
+.auth-switch button[aria-pressed=true] { background: white; color: #185c4b; box-shadow: 0 1px 4px #2b503912; }
+.auth-form { display: grid; gap: 15px; }
+.auth-form label { margin-bottom: 0; }
+.auth-form input { display: block; margin-top: 8px; }
+.auth-form .auth-help { margin-top: -6px; color: #65765e; font-size: 11px; }
+.auth-form .error { margin: 0; }
+.auth-forgot { justify-self: end; }
+.auth-submit { width: 100%; }
+.auth-alternative { margin-top: 22px; padding-top: 19px; border-top: 1px solid #e9ece3; color: #697864; font-size: 11px; line-height: 1.8; }
+.auth-secondary { margin-top: 18px; }
+.auth-access .auth-notice { padding: 12px 14px; background: #ecf3e9; border: 1px solid #d9e5d2; border-radius: 7px; font-size: 12px; color: #355d44; }
+.auth-code { letter-spacing: .18em; font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) { .auth-shell .sidebar nav a { font-size: 0; padding: 15px 8px; gap: 0; justify-content: center; } .auth-shell .sidebar nav a svg { flex-shrink: 0; } .auth-intro, .auth-form-panel { padding: 26px; } }
+@media (max-width: 680px) { .auth-access { grid-template-columns: 1fr; } .auth-form-panel { border-left: 0; border-top: 1px solid #e2e7da; } .auth-intro { padding-bottom: 24px; } .auth-emblem { display: none; } .auth-trust { margin-top: 17px; } .auth-shell .sidebar nav a { font-size: 10px; gap: 6px; flex-direction: column; flex: 1; min-width: 70px; } .auth-shell .topbar .button { font-size: 10px; padding: 9px 11px; } }
+
+.assessment-lock-note { margin: 12px 8px; font-size: 12px; line-height: 1.5; color: #526558; }
+@media (min-width: 681px) and (max-width: 900px) { .assessment-lock-note { display: none; } }
