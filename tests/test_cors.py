@@ -9,7 +9,7 @@ def test_development_cors_preflight(client):
     })
     assert response.status_code == 200
     assert response.headers['access-control-allow-origin'] == 'http://127.0.0.1:5173'
-    assert 'access-control-allow-credentials' not in response.headers
+    assert response.headers['access-control-allow-credentials'] == 'true'
 
 
 def test_unknown_origin_is_not_allowed(client):

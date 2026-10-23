@@ -20,7 +20,16 @@ def payload():
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     engine = build_engine(f"sqlite:///{tmp_path / 'students.db'}")
+    from tests.migration_utils import migrate
+    from app.api.auth import enforce_csrf, own_student, require_student
+    from app.models.auth import User
+    migrate(str(engine.url))
     monkeypatch.setattr(main, "engine", engine)
+    # Legacy contract tests isolate business validation from authentication.
+    # Full security boundaries are exercised without overrides in test_auth.py.
+    main.app.dependency_overrides[enforce_csrf] = lambda: None
+    main.app.dependency_overrides[own_student] = lambda: None
+    main.app.dependency_overrides[require_student] = lambda: User(role="student")
 
     def test_db():
         with Session(engine) as session:

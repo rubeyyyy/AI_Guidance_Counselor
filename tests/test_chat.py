@@ -40,7 +40,7 @@ def fake_llm(client, monkeypatch):
     monkeypatch.setattr(llm_module, "OpenAI", forbidden)
     fake = FakeLLM()
     main.app.dependency_overrides[get_llm] = lambda: fake
-    main.app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None)
+    main.app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, guidance_questionnaire_id="sample-initial-v1")
     return fake
 
 
@@ -136,7 +136,7 @@ def test_provider_failure_preserves_message_and_resume(client, fake_llm):
 
 def test_history_limit_and_message_minimization(client, fake_llm):
     sid = student(client, "Fictional Person")
-    main.app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, guidance_history_turns=1)
+    main.app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, guidance_history_turns=1, guidance_questionnaire_id="sample-initial-v1")
     cid = None
     for text in ["First topic", "Second topic", "Fictional Person: email me at sample@example.com"]:
         payload = {"message": text, "conversation_id": cid}
@@ -168,7 +168,7 @@ def test_context_preserves_relevant_fields_excludes_identity(client, fake_llm):
             db.flush()
             db.add(StudentAnswer(student_id=sid, question_id=q.id, value=value))
         db.commit()
-        context, _ = build_profile_context(db, sid, Settings(_env_file=None))
+        context, _ = build_profile_context(db, sid, Settings(_env_file=None, guidance_questionnaire_id="sample-initial-v1"))
         for key in list(values)[:8]:
             assert context["answers"][key] == values[key]
         assert "accessibility_needs" in context["missing_fields"]

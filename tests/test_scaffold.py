@@ -15,6 +15,8 @@ from app.schemas.student import StudentCreate, StudentRead
 
 def test_startup_health_and_student_persistence(tmp_path, monkeypatch):
     engine = build_engine(f"sqlite:///{tmp_path / 'test.db'}")
+    from tests.migration_utils import migrate
+    migrate(str(engine.url))
     monkeypatch.setattr(main, "engine", engine)
 
     with TestClient(main.app) as client:
