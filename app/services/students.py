@@ -24,5 +24,10 @@ def create_student(payload: StudentCreate, db: Session) -> Student:
 def replace_assessment(student_id: int, payload: Assessment, db: Session) -> Assessment:
     student = find_student(student_id, db)
     student.assessment_answers = payload.model_dump(mode="json")
+    from app.services.initial_assessment import import_snapshot
+    import_snapshot(db, student, overwrite=True)
+    db.flush()
+    from app.services.short_assessment import carry_forward
+    carry_forward(db, student_id, overwrite=True)
     db.commit()
     return payload

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.services.questionnaire import profile
 
-QUESTIONNAIRE_ID = "sample-initial-v1"
+from app.services.short_assessment import QUESTIONNAIRE_ID
 
 
 def minimize_text(text: str, display_name: str | None) -> str:
@@ -28,7 +28,7 @@ def minimize_value(value: Any, display_name: str | None) -> Any:
 
 
 def build_profile_context(db: Session, student_id: int, settings: Settings) -> tuple[dict, str | None]:
-    saved = profile(db, student_id, QUESTIONNAIRE_ID)
+    saved = profile(db, student_id, settings.guidance_questionnaire_id)
     allowed = set(settings.guidance_profile_keys)
     fields = {field.key: minimize_value(field.value, saved.display_name)
               for field in saved.fields if field.key in allowed}

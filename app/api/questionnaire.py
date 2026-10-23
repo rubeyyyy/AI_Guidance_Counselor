@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from app.api.auth import own_student
 
 from app.api.students import Database, StudentId
 from app.schemas.questionnaire import AnswerRead, AnswerWrite, Progress, QuestionRead, StudentProfile
@@ -12,22 +13,22 @@ def get_questions(questionnaire_id: str, db: Database):
     return service.questions(db, questionnaire_id)
 
 
-@router.put("/students/{student_id}/assessments/{questionnaire_id}/answers/{question_id}", response_model=AnswerRead)
+@router.put("/students/{student_id}/assessments/{questionnaire_id}/answers/{question_id}", response_model=AnswerRead, dependencies=[Depends(own_student)])
 def save_answer(student_id: StudentId, questionnaire_id: str, question_id: StudentId,
                 payload: AnswerWrite, db: Database):
     return service.save_answer(db, student_id, questionnaire_id, question_id, payload)
 
 
-@router.get("/students/{student_id}/assessments/{questionnaire_id}/answers", response_model=list[AnswerRead])
+@router.get("/students/{student_id}/assessments/{questionnaire_id}/answers", response_model=list[AnswerRead], dependencies=[Depends(own_student)])
 def get_answers(student_id: StudentId, questionnaire_id: str, db: Database):
     return service.answers(db, student_id, questionnaire_id)
 
 
-@router.get("/students/{student_id}/assessments/{questionnaire_id}/progress", response_model=Progress)
+@router.get("/students/{student_id}/assessments/{questionnaire_id}/progress", response_model=Progress, dependencies=[Depends(own_student)])
 def get_progress(student_id: StudentId, questionnaire_id: str, db: Database):
     return service.profile(db, student_id, questionnaire_id).progress
 
 
-@router.get("/students/{student_id}/assessments/{questionnaire_id}/profile", response_model=StudentProfile)
+@router.get("/students/{student_id}/assessments/{questionnaire_id}/profile", response_model=StudentProfile, dependencies=[Depends(own_student)])
 def get_profile(student_id: StudentId, questionnaire_id: str, db: Database):
     return service.profile(db, student_id, questionnaire_id)

@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from app.api.auth import own_student
 from app.api.students import Database, StudentId
 from app.core.config import Settings, get_settings
 from app.schemas.chat import ChatErrorResponse, ChatRequest, ChatResponse, ConversationDetail, ConversationRead
@@ -9,7 +10,7 @@ from app.services import guidance
 from app.services.llm import LLMService, get_llm
 from app.services.retrieval import RetrievalService, get_retrieval
 
-router = APIRouter(prefix="/students", tags=["AI guidance"])
+router = APIRouter(prefix="/students", tags=["AI guidance"], dependencies=[Depends(own_student)])
 LLM = Annotated[LLMService, Depends(get_llm)]
 Configuration = Annotated[Settings, Depends(get_settings)]
 Retrieval = Annotated[RetrievalService, Depends(get_retrieval)]

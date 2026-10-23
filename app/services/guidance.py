@@ -8,7 +8,7 @@ from app.core.config import Settings
 from app.models.conversation import Conversation, ConversationMessage
 from app.schemas.chat import ChatRequest, ChatResponse, ConversationDetail, ConversationRead, MessageRead
 from app.services.llm import LLMError, LLMMessage, LLMService
-from app.services.profile_context import QUESTIONNAIRE_ID, build_profile_context, minimize_text
+from app.services.profile_context import build_profile_context, minimize_text
 from app.services.students import find_student
 from app.services.retrieval import RetrievalService
 
@@ -95,11 +95,9 @@ def chat(db: Session, student_id: int, payload: ChatRequest,
     conversation = None
     if payload.conversation_id is not None:
         conversation = find_conversation(db, student_id, payload.conversation_id)
-        if conversation.questionnaire_id != QUESTIONNAIRE_ID:
-            raise HTTPException(409, "Conversation uses a different questionnaire")
     context, display_name = build_profile_context(db, student_id, settings)
     if conversation is None:
-        conversation = Conversation(student_id=student_id, questionnaire_id=QUESTIONNAIRE_ID)
+        conversation = Conversation(student_id=student_id, questionnaire_id=settings.guidance_questionnaire_id)
         db.add(conversation)
         db.flush()
     student_message = ConversationMessage(

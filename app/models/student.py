@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import JSON, DateTime, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -15,6 +15,8 @@ class Student(Base):
     Keep the existing column layout to preserve scaffold databases.
     """
     __tablename__ = "students"
+
+    user = relationship("User", back_populates="student", uselist=False)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     display_name: Mapped[str | None] = mapped_column(String(100), nullable=True)

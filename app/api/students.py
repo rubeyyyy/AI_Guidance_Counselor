@@ -5,6 +5,8 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.api.auth import own_student, require_student
+from app.models.auth import User
 from app.models import Student
 from app.services import students as service
 from app.services.students import find_student
@@ -17,18 +19,24 @@ StudentId = Annotated[int, Path(gt=0)]
 
 
 @router.post("", response_model=StudentRead, status_code=status.HTTP_201_CREATED)
-def create_student(payload: StudentCreate, response: Response, db: Database) -> Student:
-    student = service.create_student(payload, db)
+def create_student(payload: StudentCreate, response: Response, db: Database, user: Annotated[User, Depends(require_student)]) -> Student:
+    if user.student_id is not None:
+        raise HTTPException(409, "Your account already has a student profile")
+    student = Student(**payload.model_dump())
+    db.add(student)
+    db.flush()
+    user.student_id = student.id
+    db.commit()
     response.headers["Location"] = f"/students/{student.id}"
     return student
 
 
-@router.get("/{student_id}", response_model=StudentRead)
+@router.get("/{student_id}", response_model=StudentRead, dependencies=[Depends(own_student)])
 def get_student(student_id: StudentId, db: Database) -> Student:
     return find_student(student_id, db)
 
 
-@router.get("/{student_id}/assessment", response_model=Assessment)
+@router.get("/{student_id}/assessment", response_model=Assessment, dependencies=[Depends(own_student)])
 def get_assessment(student_id: StudentId, db: Database) -> Assessment:
     student = find_student(student_id, db)
     if not student.assessment_answers:
@@ -44,6 +52,6 @@ def get_assessment(student_id: StudentId, db: Database) -> Assessment:
         ) from None
 
 
-@router.put("/{student_id}/assessment", response_model=Assessment)
+@router.put("/{student_id}/assessment", response_model=Assessment, dependencies=[Depends(own_student)])
 def replace_assessment(student_id: StudentId, payload: Assessment, db: Database) -> Assessment:
     return service.replace_assessment(student_id, payload, db)

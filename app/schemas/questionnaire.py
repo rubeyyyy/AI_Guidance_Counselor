@@ -26,6 +26,7 @@ class QuestionDefinition(BaseModel):
 
 class QuestionRead(QuestionDefinition):
     id: int
+    required_when: dict[str, str] | None = None
 
 
 class QuestionnaireDefinition(BaseModel):
