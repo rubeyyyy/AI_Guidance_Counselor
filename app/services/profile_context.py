@@ -1,5 +1,7 @@
 """Minimized context derived from the same service used by the profile API."""
 import re
+import hashlib
+import json
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -8,6 +10,7 @@ from app.core.config import Settings
 from app.services.questionnaire import profile
 
 from app.services.short_assessment import QUESTIONNAIRE_ID
+from app.models.pathway import PathwayPlan
 
 
 def minimize_text(text: str, display_name: str | None) -> str:
@@ -32,10 +35,22 @@ def build_profile_context(db: Session, student_id: int, settings: Settings) -> t
     allowed = set(settings.guidance_profile_keys)
     fields = {field.key: minimize_value(field.value, saved.display_name)
               for field in saved.fields if field.key in allowed}
-    return {
+    context = {
         "questionnaire_id": saved.questionnaire_id,
         "is_sample": saved.is_sample,
         "answers": fields,
         "missing_fields": [key for key, value in fields.items() if value is None],
         "omitted_field_count": len(saved.fields) - len(fields),
-    }, saved.display_name
+    }
+    plan = db.get(PathwayPlan, student_id)
+    if plan:
+        current_answers = {field.key: field.value for field in saved.fields}
+        fingerprint = hashlib.sha256(json.dumps(current_answers, sort_keys=True).encode()).hexdigest()
+        context['saved_pathway'] = {
+            'assessment_changed': saved.questionnaire_id != QUESTIONNAIRE_ID or plan.data['fingerprint'] != fingerprint,
+            'pace': minimize_value(plan.data['pace'], saved.display_name),
+            'steps': [{key: minimize_value(step[key], saved.display_name)
+                       for key in ('horizon', 'title', 'action', 'evidence', 'timing', 'status')}
+                      for step in plan.data['steps']],
+        }
+    return context, saved.display_name

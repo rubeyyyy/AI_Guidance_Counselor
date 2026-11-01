@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from app.api.auth import router as auth_router, enforce_csrf
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.pathways import router as pathways_router
 from app.api.chat import router as chat_router
 from app.api.knowledge_base import router as knowledge_router
 from app.api.questionnaire import router as questionnaire_router
@@ -36,6 +37,7 @@ app.include_router(students_router)
 
 app.include_router(questionnaire_router)
 app.include_router(chat_router)
+app.include_router(pathways_router)
 app.include_router(knowledge_router)
 
 app.include_router(auth_router)

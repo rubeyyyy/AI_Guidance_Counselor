@@ -21,12 +21,20 @@ class LLMError(Exception):
 class LLMService(Protocol):
     def generate(self, instructions: str, messages: list[LLMMessage]) -> str: ...
 
+    def generate_json(self, instructions: str, messages: list[LLMMessage], schema: dict) -> str: ...
+
 
 class OpenAILLMService:
     def __init__(self, settings: Settings):
         self.settings = settings
 
     def generate(self, instructions: str, messages: list[LLMMessage]) -> str:
+        return self._request(instructions, messages)
+
+    def generate_json(self, instructions: str, messages: list[LLMMessage], schema: dict) -> str:
+        return self._request(instructions, messages, schema)
+
+    def _request(self, instructions: str, messages: list[LLMMessage], schema: dict | None = None) -> str:
         key = self.settings.openai_api_key.get_secret_value().strip()
         if not key:
             raise LLMError("provider_not_configured", 503)
@@ -34,12 +42,18 @@ class OpenAILLMService:
             # No provider-side conversation state; local SQLite is authoritative.
             with OpenAI(api_key=key, timeout=self.settings.openai_timeout_seconds,
                         max_retries=0) as client:
+                options = {}
+                if schema is not None:
+                    options['text'] = {'format': {'type': 'json_schema', 'name': 'student_pathway',
+                                                   'strict': True, 'schema': schema}}
                 response = client.responses.create(
                     model=self.settings.openai_model,
                     instructions=instructions,
                     input=messages,
-                    max_output_tokens=self.settings.guidance_max_output_tokens,
+                    max_output_tokens=(self.settings.pathway_max_output_tokens if schema is not None
+                                       else self.settings.guidance_max_output_tokens),
                     store=False,
+                    **options,
                 )
         except APIError:
             # Never expose provider exception bodies, credentials, or profile data.

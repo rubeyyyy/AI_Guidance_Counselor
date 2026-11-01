@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr = SecretStr("")
     openai_model: str = Field(default="gpt-4.1-mini", min_length=1)
     openai_timeout_seconds: float = Field(default=30, gt=0, le=120)
+    pathway_max_output_tokens: int = Field(default=6000, ge=2000, le=16000)
     guidance_max_output_tokens: int = Field(default=1200, ge=100, le=4000)
     guidance_history_turns: int = Field(default=10, ge=0, le=50)
     guidance_questionnaire_id: str = "initial-v2"
